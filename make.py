@@ -316,7 +316,7 @@ def main(*args):
         if args:
             targets = list(args)
         else:
-            targets = ["build"]
+            targets = ["all"]
         for target in targets:
             if target not in valid_targets:
                 logger.warn("Unknown target: %s; ignoring...", target)
