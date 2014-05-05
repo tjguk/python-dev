@@ -15,11 +15,14 @@ try:
 except NameError:
     basestring = str
 
-LOG_FILEPATH = "make.log"
-
 logger = logging.getLogger(os.path.basename(__file__))
 
 def _check_output(*args, **kwargs):
+    #
+    # The output from subprocess.check_output is bytes
+    # in Python 3.x, str in 2.x. Decoding per sys.stdout
+    # will hopefully result in a consistent unicode result.
+    #
     return subprocess.check_output(*args, **kwargs).strip().decode(sys.stdout.encoding)
 
 def _file_operation(pattern, start_from=".", recursive=False):
@@ -282,21 +285,22 @@ class Build(object):
     def do_test(self):
         """Test Python"""
         python_exe = os.path.abspath(self._find_interpreter())
-        args = [python_exe,
-                '-W', 'default',      # Warnings set to 'default'
-                '-bb',                # Warnings about bytes/bytearray
-                '-E',                 # Ignore environment variables
-                ]
-        args.extend(['-W', 'error::BytesWarning'])
-        args.extend(['-m', 'test',    # Run the test suite
-                     '-r',            # Randomize test order
-                     ])
-        args.append('-n')         # Silence alerts under Windows
+        #
+        # The run_tests helper module uses os.execv which breaks the
+        # console output. Monkeypatch it to use subprocess.call whose
+        # stdout will redirect via our _run_command mechanism.
+        #
+        args = [
+            python_exe,
+            '-c',
+            'import os, subprocess; os.execv = lambda exe, args: subprocess.call(args); exec(open(\'tools/scripts/run_tests.py\').read())'
+        ]
         logger.info("About to run tests with %s", args)
         self._run_command(args)
 
 def main(*args):
-    formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
+    LOG_FILEPATH = "make.log"
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
     logger.setLevel(level=logging.INFO)
     screen = logging.StreamHandler(sys.stdout)
     screen.setFormatter(formatter)
@@ -317,13 +321,16 @@ def main(*args):
             targets = list(args)
         else:
             targets = ["all"]
-        for target in targets:
-            if target not in valid_targets:
-                logger.warn("Unknown target: %s; ignoring...", target)
-            else:
-                logger.info("Executing %s", target)
-                function = getattr(builder, "do_" + target)
-                function()
+        try:
+            for target in targets:
+                if target not in valid_targets:
+                    logger.warn("Unknown target: %s; ignoring...", target)
+                else:
+                    logger.info("Executing %s", target)
+                    function = getattr(builder, "do_" + target)
+                    function()
+        finally:
+            os.startfile(LOG_FILEPATH)
 
 if __name__ == '__main__':
     main(*sys.argv[1:])
