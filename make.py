@@ -84,27 +84,6 @@ def _rmdir(start_from, callback=None):
             os.unlink(filepath)
         os.rmdir(dirpath)
 
-def find_interpreter():
-    """Attempt to find an interpreter:
-
-    * If a PYTHON3 env var is set, return its value
-    * If a python.bat exists in the current directory, return that
-    * If a python*.exe exists in the PCBuild directory, return that
-    * If a py.exe exists any_where on the path, return that
-    * Otherwise, return "python" and hope for the best
-    """
-    if "PYTHON3" in os.environ:
-        return os.environ["PYTHON3"]
-    if os.path.exists("python.bat"):
-        return "python.bat"
-    pcbuild_exe = _where("python*.exe", "PCBuild", True)
-    if pcbuild_exe:
-        return pcbuild_exe
-    py_exe = _where("py.exe")
-    if py_exe:
-        return py_exe
-    return "python"
-
 class Config(object):
 
     #
@@ -123,9 +102,7 @@ class Config(object):
         except subprocess.CalledProcessError:
             logger.warn("Can't determine hg branch; using default")
             self.branch = "default"
-        print(repr(self.branch))
         parser = ConfigParser()
-        print(os.path.join(self.here, "configure.%s.ini" % self.branch))
         parser.read([
             os.path.join(self.here, "configure.ini"),
             os.path.join(self.here, "configure.%s.ini" % self.branch),
@@ -146,7 +123,7 @@ class Config(object):
             self.vcvarsarg = "x86"
             self.pybuilddir = self.pcbuild
         pybuildextension = "_d.exe" if self.configuration == "Debug" else ".exe"
-        self.python_exe = os.path.join(self.pybuilddir, "python" + self.pybuildextension)
+        self.python_exe = os.path.join(self.pybuilddir, "python" + pybuildextension)
 
     def dumped(self):
         content = []
@@ -171,19 +148,34 @@ class Build(object):
     def valid_targets(cls):
         return set(m[3:] for m in dir(cls) if m.startswith("do_"))
 
-    def _run_commands(self, commands):
-        _commandset = []
-        for i, command in enumerate(commands):
-            if i > 0:
-                _commandset.append("&&")
-            _commandset.extend(command)
-        logger.debug(_commandset)
-        p = subprocess.Popen(_commandset, shell=True, stdout=self.stdout)
+    def _run_command(self, command, *args, **kwargs):
+        p = subprocess.Popen(command, *args, stdout=self.stdout, stderr=subprocess.STDOUT, **kwargs)
         if p.wait() != 0:
             raise RuntimeError("Problem with command")
 
-    def _run_command(self, command):
-        return self._run_commands([command])
+    def _find_interpreter(self):
+        """Attempt to find an interpreter:
+
+        * If a PYTHON3 env var is set, return its value
+        * If a python.bat exists in the current directory, return that
+        * If a python*.exe exists in the PCBuild directory, return that
+        * If a py.exe exists any_where on the path, return that
+        * Otherwise, return "python" and hope for the best
+
+        NB This should not be run and cached, as the interpreter may not
+        exist until it has been built.
+        """
+        if "PYTHON3" in os.environ:
+            return os.environ["PYTHON3"]
+        if os.path.exists(os.path.join(self.config.root, "python.bat")):
+            return "python.bat"
+        pcbuild_exe = _where("python*.exe", self.config.pcbuild, True)
+        if pcbuild_exe:
+            return pcbuild_exe
+        py_exe = _where("py.exe")
+        if py_exe:
+            return py_exe
+        return "python"
 
     def msbuild(self, project, target, **kwargs):
         vcvarsall = os.path.join(self.config.visual_studio, r"..\..\VC\vcvarsall.bat")
@@ -191,10 +183,7 @@ class Build(object):
         msbuild = ["msbuild", "/target:%s" % target, project] + params
         logger.debug(msbuild)
         logger.info("Running msbuild %s", target)
-        return self._run_commands([
-            ["call", vcvarsall, self.config.vcvarsarg],
-            msbuild
-        ])
+        return self._run_command(["call", vcvarsall, self.config.vcvarsarg, "&&"] + msbuild, shell=True)
 
     def build_solution(self, target, **kwargs):
         return self.msbuild(r"PCbuild\pcbuild.sln", target, **kwargs)
@@ -292,8 +281,19 @@ class Build(object):
 
     def do_test(self):
         """Test Python"""
-        raise NotImplementedError
-
+        python_exe = os.path.abspath(self._find_interpreter())
+        args = [python_exe,
+                '-W', 'default',      # Warnings set to 'default'
+                '-bb',                # Warnings about bytes/bytearray
+                '-E',                 # Ignore environment variables
+                ]
+        args.extend(['-W', 'error::BytesWarning'])
+        args.extend(['-m', 'test',    # Run the test suite
+                     '-r',            # Randomize test order
+                     ])
+        args.append('-n')         # Silence alerts under Windows
+        logger.info("About to run tests with %s", args)
+        self._run_command(args)
 
 def main(*args):
     formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
