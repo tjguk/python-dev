@@ -7,7 +7,6 @@ except ImportError:
 import fnmatch
 import glob
 import logging
-import shutil
 import subprocess
 
 try:
@@ -223,10 +222,6 @@ class Build(object):
             Platform=self.config.platform
         )
 
-    def do_buildbottest(self):
-        """Test Python with default options for buildbots"""
-        raise NotImplementedError
-
     def do_clean(self):
         """Clean out build artifacts for current configuration"""
         logger.info("Deleting .pyc / .pyo files")
@@ -276,11 +271,8 @@ class Build(object):
 
     def do_patchcheck(self):
         r"""Run Tools\scripts\patchcheck.py"""
-        raise NotImplementedError
-
-    def do_tcltk(self):
-        """Build Tcl/Tk and install .dlls"""
-        raise NotImplementedError
+        python_exe = os.path.abspath(self._find_interpreter())
+        self._run_command([python_exe, "tools/scripts/patchcheck.py"])
 
     def do_test(self):
         """Test Python"""
@@ -298,39 +290,30 @@ class Build(object):
         logger.info("About to run tests with %s", args)
         self._run_command(args)
 
-def main(*args):
-    LOG_FILEPATH = "make.log"
-    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-    logger.setLevel(level=logging.INFO)
-    screen = logging.StreamHandler(sys.stdout)
-    screen.setFormatter(formatter)
-    logger.addHandler(screen)
-
-    with open(LOG_FILEPATH, "w") as stdout:
-        stdout_handler = logging.StreamHandler(stdout)
-        stdout_handler.setFormatter(formatter)
-        logger.addHandler(stdout_handler)
-
-        config = Config()
-        logger.info(config.dumped())
-        builder = Build(config, stdout)
-        valid_targets = builder.valid_targets()
-        logger.info("Valid targets: %s", ", ".join (builder.valid_targets()))
-
+    def run_from_args(self, args):
         if args:
             targets = list(args)
         else:
-            targets = ["all"]
-        try:
-            for target in targets:
-                if target not in valid_targets:
-                    logger.warn("Unknown target: %s; ignoring...", target)
-                else:
-                    logger.info("Executing %s", target)
-                    function = getattr(builder, "do_" + target)
-                    function()
-        finally:
-            os.startfile(LOG_FILEPATH)
+            targets = ["build"]
+        for target in targets:
+            logger.info("Executing %s", target)
+            function = getattr(self, "do_" + target, None)
+            if function:
+                function()
+            else:
+                logger.warn("Unknown target: %s; ignoring...", target)
+
+def main(*args):
+    output_stream = sys.stdout
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    logger.setLevel(level=logging.INFO)
+    screen = logging.StreamHandler(output_stream)
+    screen.setFormatter(formatter)
+    logger.addHandler(screen)
+
+    config = Config()
+    logger.info(config.dumped())
+    Build(config, output_stream).run_from_args(args)
 
 if __name__ == '__main__':
     main(*sys.argv[1:])
