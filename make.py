@@ -7,6 +7,7 @@ except ImportError:
 import fnmatch
 import glob
 import logging
+import shlex
 import subprocess
 
 try:
@@ -115,6 +116,7 @@ class Config(object):
         self.visual_studio = os.path.abspath(os.environ[parser.get("configure", "envvar")])
         self.svnroot = parser.get("locations", "svnroot")
         self.externals = dict(parser.items("externals"))
+        self.run_tests = shlex.split(parser.get("commands", "run_tests"))
 
         self.pcbuild = os.path.join(self.root, "PCBuild")
         self.externals_dir = os.path.abspath(os.path.join(self.pcbuild, "../.."))
@@ -265,10 +267,6 @@ class Build(object):
                 logger.warn("Removing %s because build artefact", python_exe)
                 os.unlink(python_exe)
 
-    def do_msi(self):
-        """Build a Python .msi"""
-        raise NotImplementedError
-
     def do_patchcheck(self):
         r"""Run Tools\scripts\patchcheck.py"""
         python_exe = os.path.abspath(self._find_interpreter())
@@ -277,18 +275,7 @@ class Build(object):
     def do_test(self):
         """Test Python"""
         python_exe = os.path.abspath(self._find_interpreter())
-        #
-        # The run_tests helper module uses os.execv which breaks the
-        # console output. Monkeypatch it to use subprocess.call whose
-        # stdout will redirect via our _run_command mechanism.
-        #
-        args = [
-            python_exe,
-            '-c',
-            'import os, subprocess; os.execv = lambda exe, args: subprocess.call(args); exec(open(\'tools/scripts/run_tests.py\').read())'
-        ]
-        logger.info("About to run tests with %s", args)
-        self._run_command(args)
+        self._run_command([python_exe] + self.config.run_tests)
 
     def run_from_args(self, args):
         if args:
