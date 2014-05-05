@@ -155,7 +155,7 @@ class Build(object):
     def _run_command(self, command, *args, **kwargs):
         p = subprocess.Popen(command, *args, stdout=self.stdout, stderr=subprocess.STDOUT, **kwargs)
         if p.wait() != 0:
-            raise RuntimeError("Problem with command")
+            raise RuntimeError("There was a problem running %s" % " ".join(command))
 
     def _find_interpreter(self):
         """Attempt to find an interpreter:
@@ -198,8 +198,8 @@ class Build(object):
             if not os.path.exists(target_dirpath):
                 logger.warn("External %s is not in place", version)
 
-    def do_all(self):
-        self.do_test(self.do_build(self.do_externals(self.do_clean())))
+    def do_all(self, args):
+        self.do_test(self.do_build(self.do_externals(self.do_clean(args))))
 
     def do_build(self, args):
         """Build CPython"""
