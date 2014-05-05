@@ -199,12 +199,9 @@ class Build(object):
                 logger.warn("External %s is not in place", version)
 
     def do_all(self):
-        self.do_clean()
-        self.do_externals()
-        self.do_build()
-        self.do_test()
+        self.do_test(self.do_build(self.do_externals(self.do_clean())))
 
-    def do_build(self):
+    def do_build(self, args):
         """Build CPython"""
         logger.info("Build & run kill_python")
         self.msbuild(
@@ -223,8 +220,9 @@ class Build(object):
             Config=self.config.configuration,
             Platform=self.config.platform
         )
+        return args
 
-    def do_clean(self):
+    def do_clean(self, args):
         """Clean out build artifacts for current configuration"""
         logger.info("Deleting .pyc / .pyo files")
         _delete("*.pyc", self.config.root, True, callback=logger.debug)
@@ -233,8 +231,9 @@ class Build(object):
         for configuration in "Release", "Debug":
             self.build_solution("clean", Config=configuration, Platform=self.config.platform)
         _delete("python.bat", callback=logger.debug)
+        return args
 
-    def do_clobber(self):
+    def do_clobber(self, args):
         """Clean out all build artifacts and remove externals"""
         self.do_clean()
         _delete("tcl*.dll", "PCbuild", recursive=True)
@@ -242,8 +241,9 @@ class Build(object):
         for name, version in self.config.externals.items():
             target_dirpath = os.path.abspath(os.path.join(self.config.externals_dir, version))
             _rmdir(target_dirpath, callback=logger.debug)
+        return args
 
-    def do_externals(self):
+    def do_externals(self, args):
         """Fetch external libraries in preparation for building"""
         for name, version in self.config.externals.items():
             target_dirpath = os.path.join(self.config.externals_dir, version)
@@ -252,8 +252,9 @@ class Build(object):
             else:
                 logger.info("Fetching %s into %s", version, target_dirpath)
                 self._run_command(["svn", "export", "%s/%s" % (self.config.svnroot, version), target_dirpath])
+        return args
 
-    def do_importlib(self):
+    def do_importlib(self, args):
         """Build and run the _freeze_importlib project"""
         already_exists = set(glob.glob(r"PCBuild\python*.exe"))
         self.msbuild(
@@ -266,27 +267,35 @@ class Build(object):
             if python_exe not in already_exists:
                 logger.warn("Removing %s because build artefact", python_exe)
                 os.unlink(python_exe)
+        return args
 
-    def do_patchcheck(self):
+    def do_patchcheck(self, args):
         r"""Run Tools\scripts\patchcheck.py"""
         python_exe = os.path.abspath(self._find_interpreter())
         self._run_command([python_exe, "tools/scripts/patchcheck.py"])
+        return args
 
-    def do_test(self):
+    def do_test(self, args):
         """Test Python"""
         python_exe = os.path.abspath(self._find_interpreter())
-        self._run_command([python_exe] + self.config.run_tests)
+        #
+        # Consume all remaining test args
+        #
+        self._run_command([python_exe] + self.config.run_tests + args)
+        return []
 
     def run_from_args(self, args):
         if args:
             targets = list(args)
         else:
             targets = ["build"]
-        for target in targets:
+
+        while targets:
+            target = targets.pop(0)
             logger.info("Executing %s", target)
             function = getattr(self, "do_" + target, None)
             if function:
-                function()
+                targets = function(targets)
             else:
                 logger.warn("Unknown target: %s; ignoring...", target)
 
