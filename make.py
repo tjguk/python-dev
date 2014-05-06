@@ -111,8 +111,8 @@ class Config(object):
             os.path.join(self.here, "configure.%s.ini" % self.branch),
             os.path.join(self.root, "configure.ini"),
         ])
-        self.config = parser.get("configure", "configuration", fallback=self.__class__.configuration)
-        self.platform = parser.get("configure", "platform", fallback=self.__class__.platform)
+        self.config = parser.get("configure", "configuration")
+        self.platform = parser.get("configure", "platform")
         self.visual_studio = os.path.abspath(os.environ[parser.get("configure", "envvar")])
         self.svnroot = parser.get("locations", "svnroot")
         self.externals = dict(parser.items("externals"))
