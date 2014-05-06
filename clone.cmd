@@ -16,4 +16,4 @@ REM
 REM You would normally be inside one of the Python clones and then calling
 REM ..\make
 REM
-%~d0%~p0\python-dev\make.py %*
+FOR /F %%d IN ('%~d0%~p0\python-dev\clone.py %*') DO CD %%d
