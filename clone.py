@@ -15,15 +15,15 @@ class HTMLParser(html.parser.HTMLParser):
         html.parser.HTMLParser.__init__(self)
         self.found_title = False
         self.title = ""
-    
+
     def handle_starttag(self, tag, attrs):
         if tag == "title":
             self.found_title = True
-    
+
     def handle_endtag(self, tag):
         if tag == "title":
             self.found_title = False
-    
+
     def handle_data(self, data):
         if self.found_title:
             self.title += data.strip()
@@ -34,17 +34,17 @@ def clone_from_title(url, title):
         number, name = match.groups()
     else:
         raise RuntimeError("No suitable title found for %s" % url)
-    
+
     #
     # Strip out unwanted characters and convert to
     # a dash-separated string starting with issuexxxxx
     #
     valid = set(string.ascii_lowercase + string.digits + " ")
     name = "".join((c if c in valid else " ") for c in name.lower())
-    name = "-".join(name.split())
+    name = "-".join(name.split()[:8])
     clone_name = "issue%s-%s" % (number, name)
     subprocess.check_output(["hg", "clone", "hg.python.org", clone_name])
-    
+
     #
     # Create a shortcut inside the new clone pointing to
     # the issue page in bugs.python.org
@@ -59,7 +59,7 @@ def clone_from_title(url, title):
     persist_file = shortcut.QueryInterface(pythoncom.IID_IPersistFile)
     path = os.path.abspath(os.path.join(clone_name, "bugs.python.org.url"))
     persist_file.Save(path, 0)
-    
+
     return clone_name
 
 def main(url):
