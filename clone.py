@@ -2,6 +2,7 @@
 import os, sys
 import html.parser
 import re
+import string
 import subprocess
 import urllib.request
 
@@ -38,9 +39,8 @@ def clone_from_title(url, title):
     # Strip out unwanted characters and convert to
     # a dash-separated string starting with issuexxxxx
     #
-    name = name.lower()
-    name = name.replace(".", " ")
-    name = name.replace("_", " ")
+    valid = set(string.ascii_lowercase + string.digits + " ")
+    name = "".join((c if c in valid else " ") for c in name.lower())
     name = "-".join(name.split())
     clone_name = "issue%s-%s" % (number, name)
     subprocess.check_output(["hg", "clone", "hg.python.org", clone_name])
@@ -57,7 +57,8 @@ def clone_from_title(url, title):
     )
     shortcut.SetURL(url)
     persist_file = shortcut.QueryInterface(pythoncom.IID_IPersistFile)
-    persist_file.Save(os.path.join(clone_name, "bugs.python.org.url"), 0)
+    path = os.path.abspath(os.path.join(clone_name, "bugs.python.org.url"))
+    persist_file.Save(path, 0)
     
     return clone_name
 
