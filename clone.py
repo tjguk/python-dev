@@ -66,13 +66,13 @@ def main(url):
     """Take a bugs.python.org URL, an issue name or an issue number and
     generate a fresh clone with the issue number and (possibly abbreviated)
     name. Add a .url link inside pointing to the issue page.
-    
+
     NB be careful not to output anything to stdout except for the
     directory created; a convenience clone.cmd will read the output
     and cd.
     """
     if url.isdigit():
-        url = "issue%d" % url
+        url = "issue%s" % url
     if url.startswith("issue"):
         url = "http://bugs.python.org/%s" % url
     page = urllib.request.urlopen(url)
