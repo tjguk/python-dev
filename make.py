@@ -114,7 +114,7 @@ class Config(object):
         self.config = parser.get("configure", "configuration")
         self.platform = parser.get("configure", "platform")
         self.visual_studio = os.path.abspath(os.environ[parser.get("configure", "envvar")])
-        self.kill_python
+        self.kill_python = parser.get("configure", "kill_python")
         self.svnroot = parser.get("locations", "svnroot")
         self.externals = dict(parser.items("externals"))
         self.run_tests = shlex.split(parser.get("commands", "run_tests"))
@@ -154,7 +154,7 @@ class Build(object):
         return set(m[3:] for m in dir(cls) if m.startswith("do_"))
 
     def _run_command(self, command, *args, **kwargs):
-        p = subprocess.Popen(command, *args, stdout=self.stdout, stderr=subprocess.STDOUT, **kwargs)
+        p = subprocess.Popen(command, *args, stdout=self.stdout, **kwargs)
         if p.wait() != 0:
             raise RuntimeError("There was a problem running %s" % " ".join(command))
 
@@ -301,16 +301,18 @@ class Build(object):
                 logger.warn("Unknown target: %s; ignoring...", target)
 
 def main(*args):
-    output_stream = sys.stdout
-    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-    logger.setLevel(level=logging.INFO)
-    screen = logging.StreamHandler(output_stream)
-    screen.setFormatter(formatter)
-    logger.addHandler(screen)
+    with open("make.log", "w") as output_stream:
+        formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+        logger.setLevel(level=logging.INFO)
+        file_handler = logging.StreamHandler(output_stream)
+        file_handler.setFormatter(formatter)
+        screen = logging.StreamHandler(sys.stdout)
+        screen.setFormatter(formatter)
+        logger.addHandler(screen)
 
-    config = Config()
-    logger.info(config.dumped())
-    Build(config, output_stream).run_from_args(args)
+        config = Config()
+        logger.info(config.dumped())
+        Build(config, output_stream).run_from_args(args)
 
 if __name__ == '__main__':
     main(*sys.argv[1:])
