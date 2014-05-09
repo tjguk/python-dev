@@ -71,6 +71,7 @@ def main(url):
     directory created; a convenience clone.cmd will read the output
     and cd.
     """
+    url = url.lower().strip()
     if url.isdigit():
         url = "issue%s" % url
     if url.startswith("issue"):
