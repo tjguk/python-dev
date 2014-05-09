@@ -1,4 +1,4 @@
-os, sys
+import os, sys
 import argparse
 try:
     from configparser import ConfigParser
@@ -145,9 +145,8 @@ class Config(object):
 
 class Build(object):
 
-    def __init__(self, config, stdout):
+    def __init__(self, config):
         self.config = config
-        #~ self.stdout = stdout
 
     @classmethod
     def valid_targets(cls):
@@ -320,7 +319,7 @@ def main(*args):
 
         config = Config()
         logger.info(config.dumped())
-        Build(config, output_stream).run_from_args(args)
+        Build(config).run_from_args(args)
 
 if __name__ == '__main__':
     main(*sys.argv[1:])
