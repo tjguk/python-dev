@@ -114,7 +114,7 @@ class Config(object):
         self.config = parser.get("configure", "configuration")
         self.platform = parser.get("configure", "platform")
         self.visual_studio = os.path.abspath(os.environ[parser.get("configure", "envvar")])
-        self.kill_python
+        self.kill_python = parser.get("configure", "kill_python")
         self.svnroot = parser.get("locations", "svnroot")
         self.externals = dict(parser.items("externals"))
         self.run_tests = shlex.split(parser.get("commands", "run_tests"))
@@ -206,7 +206,7 @@ class Build(object):
         """Build CPython"""
         logger.info("Build & run kill_python")
         self.msbuild(
-            r"PCbuild\kill_python.vcxproj",
+            os.path.join(self.config.pcbuild, self.config.kill_python),
             "Build",
             Config="Debug",
             PlatformTarget=self.config.platform
