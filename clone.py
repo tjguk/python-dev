@@ -28,22 +28,33 @@ class HTMLParser(html.parser.HTMLParser):
         if self.found_title:
             self.title += data.strip()
 
-def clone_from_title(url, title):
+def clone_from_name(name, branch=None):
+    #
+    # Strip out unwanted characters and convert to
+    # a dash-separated string. Clone and return the generated name
+    #
+    valid = set(string.ascii_lowercase + string.digits + " ")
+    name = "".join((c if c in valid else " ") for c in name.lower())
+    clone_name = "-".join(name.split()[:8])
+    source = "hg.python.org"
+    if branch:
+        source += branch
+    subprocess.check_output(["hg", "clone", source, clone_name])
+    return clone_name
+
+def clone_from_url(url, branch=None):
+    page = urllib.request.urlopen(url)
+    parser = HTMLParser()
+    parser.feed(page.read().decode("utf-8"))
+    title = parser.title
+    if not title:
+        raise RuntimeError("No title found for %s" % url)
     match = re.match(r"Issue\s+(\d+)\:\s+(.*?) - Python tracker", title)
     if match:
         number, name = match.groups()
     else:
         raise RuntimeError("No suitable title found for %s" % url)
-
-    #
-    # Strip out unwanted characters and convert to
-    # a dash-separated string starting with issuexxxxx
-    #
-    valid = set(string.ascii_lowercase + string.digits + " ")
-    name = "".join((c if c in valid else " ") for c in name.lower())
-    name = "-".join(name.split()[:8])
-    clone_name = "issue%s-%s" % (number, name)
-    subprocess.check_output(["hg", "clone", "hg.python.org", clone_name])
+    clone_name = clone_from_name("issue%s-%s" % (number, name))
 
     #
     # Create a shortcut inside the new clone pointing to
@@ -62,26 +73,33 @@ def clone_from_title(url, title):
 
     return clone_name
 
-def main(url):
+def main(name, branch=None):
     """Take a bugs.python.org URL, an issue name or an issue number and
     generate a fresh clone with the issue number and (possibly abbreviated)
     name. Add a .url link inside pointing to the issue page.
+
+    If the name doesn't appear to be an issue, just generate a clone of
+    that name
 
     NB be careful not to output anything to stdout except for the
     directory created; a convenience clone.cmd will read the output
     and cd.
     """
-    url = url.lower().strip()
-    if url.isdigit():
-        url = "issue%s" % url
-    if url.startswith("issue"):
-        url = "http://bugs.python.org/%s" % url
-    page = urllib.request.urlopen(url)
-    parser = HTMLParser()
-    parser.feed(page.read().decode("utf-8"))
-    if not parser.title:
-        raise RuntimeError("No title found for %s" % url)
-    print(clone_from_title(url, parser.title))
+    name = name.lower().strip()
+    if name.isdigit():
+        name = "issue%s" % name
+    if name.startswith("issue"):
+        name = "http://bugs.python.org/%s" % name
+    if name.startswith("http://"):
+        function = clone_from_url
+    else:
+        function = clone_from_name
+
+    #
+    # This print is needed by the calling batch file which will
+    # CD into the directory printed here.
+    #
+    print(function(name, branch))
 
 if __name__ == '__main__':
     sys.exit(main(*sys.argv[1:]))
