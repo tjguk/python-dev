@@ -38,7 +38,7 @@ def clone_from_name(name, branch=None):
     clone_name = "-".join(name.split()[:8])
     source = "hg.python.org"
     if branch:
-        source += branch
+        source += "#" + branch
     subprocess.check_output(["hg", "clone", source, clone_name])
     return clone_name
 
