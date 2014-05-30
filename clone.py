@@ -54,7 +54,7 @@ def clone_from_url(url, branch=None):
         number, name = match.groups()
     else:
         raise RuntimeError("No suitable title found for %s" % url)
-    clone_name = clone_from_name("issue%s-%s" % (number, name))
+    clone_name = clone_from_name("issue%s-%s" % (number, name), branch)
 
     #
     # Create a shortcut inside the new clone pointing to
