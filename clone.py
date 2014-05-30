@@ -57,7 +57,7 @@ def clone_from_title(url, title):
     )
     shortcut.SetURL(url)
     persist_file = shortcut.QueryInterface(pythoncom.IID_IPersistFile)
-    path = os.path.abspath(os.path.join(clone_name, "bugs.python.org.url"))
+    path = os.path.abspath(os.path.join(clone_name, "issue%s.url" % number))
     persist_file.Save(path, 0)
 
     return clone_name
