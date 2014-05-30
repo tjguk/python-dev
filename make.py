@@ -156,7 +156,7 @@ class Build(object):
         here = os.path.abspath(".").rstrip("\\") + "\\"
         p = subprocess.Popen(command, *args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **kwargs)
         for line in p.stdout:
-            logger.debug(line.strip().replace(here, ""))
+            logger.debug(line.decode("mbcs").strip().replace(here, ""))
         if p.wait() != 0:
             raise RuntimeError("There was a problem running %s" % " ".join(command))
 
@@ -208,7 +208,7 @@ class Build(object):
         """Build CPython"""
         logger.info("Build & run kill_python")
         self.msbuild(
-            r"PCbuild\kill_python.vcxproj",
+            os.path.join(self.config.pcbuild, self.config.kill_python),
             "Build",
             Config="Debug",
             PlatformTarget=self.config.platform
