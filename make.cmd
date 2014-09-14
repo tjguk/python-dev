@@ -5,7 +5,7 @@ REM is something like this:
 REM
 REM python\
 REM   make.cmd (this file)
-REM   python-make\
+REM   python-dev\
 REM     make.py
 REM     configure.ini
 REM   issue12345\
