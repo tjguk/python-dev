@@ -287,6 +287,13 @@ class Build(object):
         self._run_command([python_exe] + self.config.run_tests + args)
         return []
 
+    def do_docs(self, args):
+        if not args:
+            args = ["html"]
+        #~ subprocess.call(["doc\make.bat"] + args)
+        self._run_command(["doc\make.bat"] + args)
+        return []
+
     def run_from_args(self, args):
         if args:
             targets = list(args)
