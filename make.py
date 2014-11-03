@@ -120,7 +120,7 @@ class Config(object):
         self.run_tests = shlex.split(parser.get("commands", "run_tests"))
 
         self.pcbuild = os.path.join(self.root, "PCBuild")
-        self.externals_dir = os.path.abspath(os.path.join(self.pcbuild, "../.."))
+        self.externals_dir = os.path.abspath(os.path.join(self.pcbuild, "../externals"))
         if self.platform == "x64":
             self.vcvarsarg = "x86_amd64"
             self.pybuilddir = os.path.join(self.pcbuild, "amd64")
